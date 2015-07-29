@@ -139,7 +139,7 @@ If you'd like to debug the project in VisualStudio, go into the project properti
 
 Start debugging, it should open a PowerShell command session and import the module. 
 
-## Constributing
+## Contributing
 
 We would be glad to receive Pull Requests and/or Issues. We will make an effort to resolve issues in a timely manner, but do not have time dedicated to this project.
 
