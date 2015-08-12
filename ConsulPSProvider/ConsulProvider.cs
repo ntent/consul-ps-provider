@@ -1,4 +1,5 @@
-﻿using Consul;
+﻿using System.Text.RegularExpressions;
+using Consul;
 using ConsulPSProvider;
 using System;
 using System.Collections.Specialized;
@@ -10,7 +11,7 @@ using System.Text;
 
 namespace Ntent.PowerShell.Providers.Consul
 {
-    [CmdletProvider("ConsulProvider",ProviderCapabilities.None)]
+    [CmdletProvider("ConsulProvider", ProviderCapabilities.ExpandWildcards)]
     public class ConsulProvider : NavigationCmdletProvider
     {
         static ConsulProvider()
@@ -208,6 +209,11 @@ namespace Ntent.PowerShell.Providers.Consul
 
             _cache.Set(cacheKey, isContainer, DateTimeOffset.Now.AddSeconds(2));
             return isContainer.Value;
+        }
+
+        protected override string[] ExpandPath(string path)
+        {
+            return PathsFromWildCard(path);
         }
 
         #endregion ItemCmdletProvider Methods
@@ -453,6 +459,29 @@ namespace Ntent.PowerShell.Providers.Consul
             return result;
         }
 
+        private string[] PathsFromWildCard(string path)
+        {
+            var normalPath = RemoveDriveFromPath(NormalizePath(path));
+            var wildCardLoc = normalPath.IndexOf("*", StringComparison.Ordinal);
+            if (wildCardLoc == -1)
+                return new [] { normalPath };
+
+            var regexString = Regex.Escape(TrimStartSeparator(normalPath)).Replace("\\*", ".*");
+            regexString = "^" + regexString + "$";
+            var regex = new Regex(regexString);
+
+            var rootPath = normalPath.Substring(0, wildCardLoc);
+
+            var res = ConsulDriveInfo.ConsulClient.KV.Keys(rootPath,PATH_SEPARATOR);
+            if (res.Response == null)
+                return null;
+
+            var items = (from item in res.Response
+                        where regex.IsMatch(item)
+                        select item).ToArray();
+
+            return items.Any() ? items : null;
+        }
         private string TrimStartSeparator(string path)
         {
             if (path.StartsWith(PATH_SEPARATOR))

@@ -19,7 +19,7 @@ So as far as the PowerShell Provider hierarchy goes, this is the functionality i
 * Writing binary (byte[]) values. Only string (utf8) values can be written.
 
 
-### DriveCmdletProvider Support
+### Drive Cmdlets Support
 
 #### New-PSDrive
 Creating a new Consul named PSDrive:
@@ -122,7 +122,7 @@ foo
 * any Item Content cmdlets
 
 ### Container/Navigation Cmdlets
-There is enough basic support for containers/navigation to move around in the consul tree and list keys, create containers and items.
+There is enough basic support for containers/navigation to move around in the consul tree and list keys, create containers and items. Also, tab completion is implemented.
 
 ```PowerShell
 PS CONSUL:\test> cd container
