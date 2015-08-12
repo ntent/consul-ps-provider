@@ -81,19 +81,42 @@ PS CONSUL:\>
 The returned object has a `ValueAsString` property which uses UTF8 encoding to decode the byte[] value into a string. The raw byte[] is available in the Value field.
 
 #### Remove-Item
-You can delete a key or an entire tree of keys using the Remove-Item cmdlet
+You can delete a key or an entire tree of keys using the Remove-Item cmdlet (alias 'rm')
 
 ```PowerShell
 PS CONSUL:\> Remove-Item test\foo
-PS CONSUL:\> Remove-Item test -recurse
+PS CONSUL:\> Remove-Item -recurse test
 PS CONSUL:\> 
+```
+
+#### Copy-Item
+To copy an item or folder to another item or folder, use the Copy-Item cmdlet (alias 'cp')
+
+```PowerShell
+PS CONSUL:\> Set-Item src/foo bar
+PS CONSUL:\> Copy-Item -recurse src dst
+PS CONSUL:\> ls
+dst/
+src/
+PS CONSUL:\> ls dst
+foo
+```
+
+#### Move-Item
+To move an item or folder to another item or folder, use the Move-Item cmdlet (alias 'mv')
+
+```PowerShell
+PS CONSUL:\> Set-Item src/foo bar
+PS CONSUL:\> Move-Item src dst
+PS CONSUL:\> ls
+dst/
+PS CONSUL:\> ls dst
+foo
 ```
 
 #### Not Implemented
 * Clear-Item
-* Copy-Item
 * Invoke-Item
-* Move-Item
 * Rename-Item
 * any Item Property cmdlets
 * any Item Content cmdlets

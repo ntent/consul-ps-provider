@@ -15,10 +15,15 @@ namespace Ntent.PowerShell.Providers.Consul
     {
         static ConsulProvider()
         {
-            _cache = new MemoryCache("ConsulOpCache", new NameValueCollection { { "CacheMemoryLimitMegabytes", "5" } }); 
+            NewCache();
         }
 
-        private static readonly MemoryCache _cache;
+        private static void NewCache()
+        {
+            _cache = new MemoryCache("ConsulOpCache", new NameValueCollection {{"CacheMemoryLimitMegabytes", "5"}});
+        }
+
+        private static MemoryCache _cache;
         private const string PATH_SEPARATOR = "/";
         private ConsulPSDriveInfo ConsulDriveInfo {
             get
@@ -133,6 +138,10 @@ namespace Ntent.PowerShell.Providers.Consul
         {
             var normalPath = RemoveDriveFromPath(NormalizePath(path));
             ConsulDriveInfo.ConsulClient.KV.Put(new KVPair(normalPath) { Value = Encoding.UTF8.GetBytes(value.ToString()) });
+
+            // clear the cache since we changed data
+            NewCache();
+
         }
 
         protected override bool ItemExists(string path)
@@ -149,8 +158,8 @@ namespace Ntent.PowerShell.Providers.Consul
                 return exists.Value;
 
             var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPath, PATH_SEPARATOR);
-            // the list must contain the incoming path. 
-            exists = res.Response != null && res.Response.Any(p=>IsSamePath(p,normalPath));
+            // the list must contain the incoming path or a subpath. 
+            exists = res.Response != null && res.Response.Any(p=>IsSamePath(p,normalPath) || TrimSeparator(p).StartsWith(TrimSeparator(normalPath) + "/"));
             _cache.Set(cacheKey, exists, DateTimeOffset.Now.AddSeconds(2));
             return exists.Value;
 
@@ -197,7 +206,7 @@ namespace Ntent.PowerShell.Providers.Consul
             // the list always contains itself, so length > 1 means child items exist. Lenth == 1 and the item ends with a trailing / means this item is an empty container.
             isContainer = res.Response != null && res.Response.Length > 0 && (!exact || normalPath.EndsWith(PATH_SEPARATOR));
 
-            _cache.Set(cacheKey, isContainer, DateTimeOffset.Now.AddSeconds(20));
+            _cache.Set(cacheKey, isContainer, DateTimeOffset.Now.AddSeconds(2));
             return isContainer.Value;
         }
 
@@ -232,6 +241,9 @@ namespace Ntent.PowerShell.Providers.Consul
                 ConsulDriveInfo.ConsulClient.KV.Delete(normalPath);
             else
                 ConsulDriveInfo.ConsulClient.KV.DeleteTree(normalPath);
+
+            // clear the cache since we changed data
+            NewCache();
         }
 
         protected override bool HasChildItems(string path)
@@ -258,6 +270,9 @@ namespace Ntent.PowerShell.Providers.Consul
                 normalPath = normalPath.EndsWith(PATH_SEPARATOR) ? normalPath.Substring(0,normalPath.Length-1) : normalPath;
 
             ConsulDriveInfo.ConsulClient.KV.Put(new KVPair(normalPath) { Value = newItemValue == null ? null : Encoding.UTF8.GetBytes(newItemValue.ToString())});
+
+            // clear the cache since we changed data
+            NewCache();
         }
 
         #endregion ContainerCmdletProviderMethods
@@ -266,30 +281,72 @@ namespace Ntent.PowerShell.Providers.Consul
 
         protected override void MoveItem(string path, string destination)
         {
-            // started but not working
-            throw new NotImplementedException();
+            CopyItem(path, destination, true, true);
+        }
+
+        protected override void CopyItem(string path, string copyPath, bool recurse)
+        {
+            CopyItem(path, copyPath, recurse, false);
+        }
+
+        protected void CopyItem(string path, string copyPath, bool recurse, bool deleteSrc)
+        {
             var normalSrc = RemoveDriveFromPath(NormalizePath(path));
-            var normalDst = RemoveDriveFromPath(NormalizePath(destination));
+            var normalDst = RemoveDriveFromPath(NormalizePath(copyPath));
 
-            // first iterate and copy all values from source to dest. then recursively delete source.
-            var res = ConsulDriveInfo.ConsulClient.KV.List(normalSrc);
-            if (res.Response == null)
-                return;
+            // if we are moving (deleteSrc == true) then destination can't be a child of source.
+            if (normalDst.StartsWith(normalSrc))
+                throw new ArgumentException(string.Format("The destination {0} cannot be a child of the source {1}", normalDst, normalSrc));
 
-            foreach (var item in res.Response)
+            // if the destination exists as a container, we want to copy the source INTO the destination container (keeping the source's name).
+            //    e.g. cp src dst => dst/src/...
+            // if the destination does NOT exist as a container, we want to copy the source to an item *called* the destination name.
+            var dstExists = ItemExists(normalDst) && IsItemContainer(normalDst);
+            var dstRoot = dstExists ? normalDst : GetParentPath(normalDst, "");
+            var dstName = dstExists ? GetChildName(normalSrc) : GetChildName(normalDst);
+
+            KVPair[] itemsToCopy;
+            // if they did NOT pass -recurse, then all we need to do is copy one item (the exact path of the source, be it a container or an item)
+            if (!recurse)
+            {
+                var item = ConsulDriveInfo.ConsulClient.KV.Get(normalSrc);
+                if (item.Response == null)
+                    item = ConsulDriveInfo.ConsulClient.KV.Get(normalSrc + PATH_SEPARATOR);
+                if (item.Response == null)
+                    return;
+                itemsToCopy = new [] { item.Response };
+            }
+            else
+            {
+                // iterate and copy all values from source to dest.
+                var res = ConsulDriveInfo.ConsulClient.KV.List(normalSrc);
+                if (res.Response == null)
+                    return;
+
+                itemsToCopy = res.Response;
+            }
+            
+
+            foreach (var item in itemsToCopy)
             {
                 // trim the parent path from the source, and add to the destination
-                var parent = GetParentPath(normalSrc, "");
-                var itemRelPath = normalSrc;
-                if (parent != normalSrc)
-                    itemRelPath = normalSrc.Substring(parent.Length);
+                var itemRelPath = ("/" + item.Key).Substring(normalSrc.Length);
 
-                var dstPath = NormalizePath(MakePath(normalDst, itemRelPath));
+                var dstPath = NormalizePath(MakePath(dstRoot, dstName));
 
-                ConsulDriveInfo.ConsulClient.KV.Put(new KVPair(dstPath) {Value = item.Value, Flags = item.Flags});
+                // combine the destination root with the destination name and the item relative path
+                if (itemRelPath != "")
+                    dstPath = NormalizePath(MakePath(dstPath, itemRelPath));
+
+                ConsulDriveInfo.ConsulClient.KV.Put(new KVPair(dstPath) { Value = item.Value, Flags = item.Flags });
             }
 
-            ConsulDriveInfo.ConsulClient.KV.DeleteTree(normalSrc);
+            // if we copied everything and this is a move operation, delete the source
+            if (deleteSrc)
+                ConsulDriveInfo.ConsulClient.KV.DeleteTree(normalSrc);
+
+            // clear the cache since we changed data
+            NewCache();
         }
 
         #endregion NavigationCmdletProviderMethods

@@ -19,8 +19,8 @@ namespace ConsulPSProvider
 
             // TODO: Support DataCenter, AuthToken, HttpAuthentication
 
-            // connection is specified as a URI to the consul http interface
-            var consulUri = new Uri(driveInfo.Root);
+            // connection is specified as a URI to the consul http interface. Don't want a trailing slash, just host and port.
+            var consulUri = new Uri(driveInfo.Root.TrimEnd('/'));
 
             ConsulClient = new Client(new ConsulClientConfiguration { Address = consulUri.Host + ":" + consulUri.Port , Scheme = consulUri.Scheme } );
 
