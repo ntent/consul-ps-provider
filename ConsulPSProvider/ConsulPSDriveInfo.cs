@@ -17,12 +17,22 @@ namespace ConsulPSProvider
 
             // TODO: Check if the consul root is valid?
 
-            // TODO: Support DataCenter, AuthToken, HttpAuthentication
+            // TODO: Support DataCenter, HttpAuthentication
 
             // connection is specified as a URI to the consul http interface. Don't want a trailing slash, just host and port.
             var consulUri = new Uri(driveInfo.Root.TrimEnd('/'));
 
-            ConsulClient = new Client(new ConsulClientConfiguration { Address = consulUri.Host + ":" + consulUri.Port , Scheme = consulUri.Scheme } );
+            var config = new ConsulClientConfiguration
+            {
+                Address = consulUri.Host + ":" + consulUri.Port,
+                Scheme = consulUri.Scheme
+            };
+            
+            // AuthToken taken from Credential UserName if available.
+            if (driveInfo.Credential != null && !string.IsNullOrWhiteSpace(driveInfo.Credential.UserName))
+                config.Token = driveInfo.Credential.UserName;
+            
+            ConsulClient = new Client(config);
 
         }
     }

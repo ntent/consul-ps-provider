@@ -11,7 +11,7 @@ using System.Text;
 
 namespace Ntent.PowerShell.Providers.Consul
 {
-    [CmdletProvider("ConsulProvider", ProviderCapabilities.ExpandWildcards)]
+    [CmdletProvider("ConsulProvider", ProviderCapabilities.ExpandWildcards|ProviderCapabilities.Credentials)]
     public class ConsulProvider : NavigationCmdletProvider
     {
         static ConsulProvider()
