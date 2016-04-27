@@ -301,7 +301,7 @@ namespace Ntent.PowerShell.Providers.Consul
             var normalDst = RemoveDriveFromPath(NormalizePath(copyPath));
 
             // if we are moving (deleteSrc == true) then destination can't be a child of source.
-            if (normalDst.StartsWith(normalSrc))
+            if (IsItemContainer(normalSrc) && normalDst.StartsWith(normalSrc + PATH_SEPARATOR))
                 throw new ArgumentException(string.Format("The destination {0} cannot be a child of the source {1}", normalDst, normalSrc));
 
             // if the destination exists as a container, we want to copy the source INTO the destination container (keeping the source's name).
