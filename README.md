@@ -3,6 +3,11 @@
 consul-ps-provider - a PowerShell provider for the KV store of Consul (http://consul.io).
 
 This is an early release, but has enough functionality to get started. This was our first PowerShell Provider so any feedback or suggestions on how to do things better are welcome (pull requests OR issues) 
+## Requirements
+Currently the provider only works with PowerShell 4.0 (see https://www.microsoft.com/en-us/download/details.aspx?id=40855). There are known issues with 3.0, and uncertain about any newer versions.
+
+## Installation
+After the solution is built, run the `InstallProvider.ps1` script or run `Import-Module .\ConsulPSProvider.dll` in the output directory.
 
 ## Features
 So as far as the PowerShell Provider hierarchy goes, this is the functionality implemented (or not implemented)
