@@ -11,17 +11,17 @@ namespace ConsulPSProvider
     public class ConsulPSDriveInfo : PSDriveInfo
     {
         public Client ConsulClient;
-        
-        public ConsulPSDriveInfo(PSDriveInfo driveInfo) : base(driveInfo)
+
+        // Issue #1 - Don't want a trailing slash, just host and port (this needs to be done at the 'Root' of the drive)
+        public ConsulPSDriveInfo(PSDriveInfo driveInfo) : base(driveInfo.Name,driveInfo.Provider,driveInfo.Root.TrimEnd('/'),driveInfo.Description,driveInfo.Credential,driveInfo.DisplayRoot)
         {
 
             // TODO: Check if the consul root is valid?
 
             // TODO: Support DataCenter, HttpAuthentication
 
-            // connection is specified as a URI to the consul http interface. Don't want a trailing slash, just host and port.
-            
-            var consulUri = new Uri(driveInfo.Root.TrimEnd('/'));
+            // connection is specified as a URI to the consul http interface. .
+            var consulUri = new Uri(Root);
 
             var config = new ConsulClientConfiguration
             {
