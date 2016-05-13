@@ -243,10 +243,15 @@ namespace Ntent.PowerShell.Providers.Consul
         {
             var normalPath = RemoveDriveFromPath(NormalizePath(path));
 
-            if (!recurse)
+            if (!recurse || !IsItemContainer(normalPath))
                 ConsulDriveInfo.ConsulClient.KV.Delete(normalPath);
             else
-                ConsulDriveInfo.ConsulClient.KV.DeleteTree(normalPath);
+            {
+                // Issue #2 - DeleteTree will delete multiple folders if one is a super-path of the other. e.g.
+                //     rm -r ./MyTest  will also delete the folder ./MyTestPath
+                // so force a path separator at the end of the provided path.
+                ConsulDriveInfo.ConsulClient.KV.DeleteTree(normalPath + PATH_SEPARATOR);
+            }
 
             // clear the cache since we changed data
             NewCache();
