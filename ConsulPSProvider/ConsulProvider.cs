@@ -160,10 +160,9 @@ namespace Ntent.PowerShell.Providers.Consul
 
             var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPath, PATH_SEPARATOR);
             // the list must contain the incoming path or a subpath. 
-            exists = res.Response != null && res.Response.Any(p=>IsSamePath(p,normalPath) || TrimSeparator(p).StartsWith(TrimSeparator(normalPath) + "/"));
+            exists = res.Response != null && res.Response.Any(p => IsSamePath(p, normalPath) || TrimSeparator(p).StartsWith(TrimSeparator(normalPath) + "/"));
             _cache.Set(cacheKey, exists, DateTimeOffset.Now.AddSeconds(2));
             return exists.Value;
-
         }
 
         /// <summary>
@@ -198,12 +197,12 @@ namespace Ntent.PowerShell.Providers.Consul
             if (!normalPath.EndsWith(PATH_SEPARATOR))
                 normalPathAsContainer = TrimStartSeparator(normalPath + PATH_SEPARATOR);
 
-            var cacheKey = MakeKey(normalPath, "IsContainer" + (exact ? "Exact" : ""));
+            var cacheKey = MakeKey(normalPathAsContainer, "IsContainer" + (exact ? "Exact" : ""));
             var isContainer = _cache.Get(cacheKey) as bool?;
             if (isContainer.HasValue)
                 return isContainer.Value;
 
-            var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPath, PATH_SEPARATOR);
+            var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPathAsContainer, PATH_SEPARATOR);
             // the list always contains itself, so length > 1 means child items exist. Lenth == 1 and the item ends with a trailing / means this item is an empty container.
             isContainer = res.Response != null && res.Response.Length > 0 && (!exact || normalPath.EndsWith(PATH_SEPARATOR));
 
@@ -305,9 +304,22 @@ namespace Ntent.PowerShell.Providers.Consul
             var normalSrc = RemoveDriveFromPath(NormalizePath(path));
             var normalDst = RemoveDriveFromPath(NormalizePath(copyPath));
 
-            // if we are moving (deleteSrc == true) then destination can't be a child of source.
-            if (IsItemContainer(normalSrc) && normalDst.StartsWith(normalSrc + PATH_SEPARATOR))
-                throw new ArgumentException(string.Format("The destination {0} cannot be a child of the source {1}", normalDst, normalSrc));
+            if (IsItemContainer(normalSrc))
+            {
+                // if the source wasn't specified with the trailing separator, add it
+                if (!normalSrc.EndsWith(PATH_SEPARATOR))
+                    normalSrc = TrimStartSeparator(normalSrc + PATH_SEPARATOR);
+
+                // if we are moving (deleteSrc == true) then destination can't be a child of source.
+                if (deleteSrc && normalDst.StartsWith(normalSrc))
+                    throw new ArgumentException(string.Format("The destination {0} cannot be a child of the source {1}", normalDst, normalSrc));
+
+            }
+            else
+            {
+                // the source is not a container, ensure recurse is not specified (silently ignore).
+                recurse = false;
+            }
 
             // if the destination exists as a container, we want to copy the source INTO the destination container (keeping the source's name).
             //    e.g. cp src dst => dst/src/...
@@ -340,6 +352,10 @@ namespace Ntent.PowerShell.Providers.Consul
 
             foreach (var item in itemsToCopy)
             {
+                // folders retrieve themselves in the KV list
+                if (item.Key == normalSrc)
+                    continue;
+
                 // trim the parent path from the source, and add to the destination
                 var itemRelPath = ("/" + item.Key).Substring(normalSrc.Length);
 
@@ -491,7 +507,7 @@ namespace Ntent.PowerShell.Providers.Consul
         {
             if (path.StartsWith(PATH_SEPARATOR))
             {
-                return path.Substring(1);
+                return path.Substring(PATH_SEPARATOR.Length);
             }
 
             return path;
@@ -501,7 +517,7 @@ namespace Ntent.PowerShell.Providers.Consul
         {
             if (path.EndsWith(PATH_SEPARATOR))
             {
-                return path.Substring(0, path.Length - 1);
+                return path.Substring(0, path.Length - PATH_SEPARATOR.Length);
             }
 
             return path;
