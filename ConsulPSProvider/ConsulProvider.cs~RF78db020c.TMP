@@ -243,7 +243,7 @@ namespace Ntent.PowerShell.Providers.Consul
             var normalPath = RemoveDriveFromPath(NormalizePath(path));
 
             var isContainer = IsItemContainer(normalPath);
-            if (!recurse || !isContainer)
+            if (!recurse)
             {
                 if (isContainer)
                     ConsulDriveInfo.ConsulClient.KV.Delete(normalPath + PATH_SEPARATOR);
