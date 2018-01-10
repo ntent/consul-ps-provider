@@ -28,7 +28,12 @@ namespace ConsulPSProvider
                 Address = consulUri.Host + ":" + consulUri.Port,
                 Scheme = consulUri.Scheme
             };
-            
+
+            if (driveInfo.Credential != null && !string.IsNullOrEmpty(driveInfo.Credential.UserName))
+            {
+                config.HttpAuth = driveInfo.Credential.GetNetworkCredential();
+            }
+
             // AuthToken taken from Credential UserName if available.
             if (driveInfo.Credential != null && !string.IsNullOrWhiteSpace(driveInfo.Credential.UserName))
                 config.Token = driveInfo.Credential.UserName;

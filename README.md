@@ -16,9 +16,9 @@ So as far as the PowerShell Provider hierarchy goes, this is the functionality i
 #### Implemented
 * http/https connections to consul
 * Read string (utf8) and binary/byte[] values
+* ACL Auth for http connections (see https://www.consul.io/api/index.html#acls)
 
 #### Not Yet Implemented
-* Basic Auth for http connections
 * Flags on keys
 * Auth Tokens
 * Writing binary (byte[]) values. Only string (utf8) values can be written.
@@ -39,8 +39,21 @@ CONSUL                              ConsulProv... http://localhost:8500
 PS C:\> cd CONSUL:
 PS CONSUL:\>
 ```
-
 The connection root for the drive should include the base URI for the consul node (or VIP) to connect to including protocol, host, and port. The rest of the path to the KV store will be added automatically.
+
+##### ACL Auth Tokens
+If you want to use an ACL token to connect to Consul, use the -Credential option to New-PSDrive, and set the ACL token as the username of the credentials object passed:
+
+```PowerShell
+PS C:\> New-PSDrive CONSULACL ConsulProvider http://localhost:8500 -Credential $(Get-Credential)
+
+Name        Used (GB)     Free (GB) Provider      Root                                                                        CurrentLocation
+----        ---------     --------- --------      ----                                                                        ---------------
+CONSUL                              ConsulProv... http://localhost:8500
+
+PS C:\> cd CONSUL:
+PS CONSUL:\>
+```
 
 ### Item Cmdlets Support
 
