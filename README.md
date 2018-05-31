@@ -159,9 +159,29 @@ sub/
 PS CONSUL:\test\container>
 ```
 
-#### Not Implemented
-* Copy-Item
-* Move-Item
+#### Get-ChildItem
+To return the list of children under the current folder / container use the Get-ChildItem cmdlet (alias 'ls'). 
+Supports basic and recurse option.
+
+```PowerShell
+PS CONSUL:\test> cd container
+PS CONSUL:\test\container> ls
+PS CONSUL:\test\container> set-item foo bar
+PS CONSUL:\test\container> mkdir sub
+PS CONSUL:\test\container> ls
+foo
+sub/
+PS CONSUL:\test\container> cd sub
+PS CONSUL:\test\container> set-item bar baz
+PS CONSUL:\test\container\sub> ls
+bar
+PS CONSUL:\test\container\sub> cd ..
+PS CONSUL:\test\container> ls -r
+foo
+sub/bar
+sub/
+PS CONSUL:\test\container>
+```
 
 ## Building and Installing
 

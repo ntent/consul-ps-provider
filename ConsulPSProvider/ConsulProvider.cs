@@ -2,6 +2,7 @@
 using Consul;
 using ConsulPSProvider;
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Management.Automation;
@@ -227,15 +228,28 @@ namespace Ntent.PowerShell.Providers.Consul
             if (!normalPath.EndsWith(PATH_SEPARATOR))
                 normalPath = normalPath + PATH_SEPARATOR;
 
-            var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPath, PATH_SEPARATOR);
-            if (res.Response != null)
+            IEnumerable<string> keys = Enumerable.Empty<string>();
+            if (recurse)
             {
-                foreach (var child in res.Response.Where(p => !IsSamePath(p, normalPath)))
+                var res = ConsulDriveInfo.ConsulClient.KV.List(normalPath);
+                if (res.Response != null)
                 {
-                    WriteItemObject(child.Substring(normalPath.Length - 1), child, IsItemContainer(child, true));
+                    keys = res.Response.Select(kv => kv.Key);
+                }
+            }
+            else
+            {
+                var res = ConsulDriveInfo.ConsulClient.KV.Keys(normalPath, PATH_SEPARATOR);
+                if (res.Response != null)
+                {
+                    keys = res.Response;
                 }
             }
 
+            foreach (var child in keys.Where(p => !IsSamePath(p, normalPath)))
+            {
+                WriteItemObject(child.Substring(normalPath.Length - 1), child, IsItemContainer(child, true));
+            }
         }
 
         protected override void RemoveItem(string path, bool recurse)
